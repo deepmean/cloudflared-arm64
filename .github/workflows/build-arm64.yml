@@ -1,0 +1,92 @@
+name: build-cloudflared-windows-arm64
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # GitHub-hosted Windows 11 Arm64 runner (GA since 2026-09, VS 2026 image).
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Must match cloudflared's go.mod at the pinned ref
+          # (2026.10.0 declares `go 1.26`; master declares `go 1.27`).
+          go-version: '1.26.x'
+          cache: true
+
+      - name: Show environment
+        shell: pwsh
+        run: |
+          Write-Host "GOOS=$env:GOOS GOARCH=$env:GOARCH"
+          go env GOVERSION
+          go env GOHOSTOS GOHOSTARCH
+
+      - name: Resolve cloudflared source version
+        id: src
+        shell: pwsh
+        run: |
+          # Pin to a known-good release tag so the build is reproducible.
+          # Override by pushing a v* tag or editing CLOUDFLARED_REF below.
+          $ref = '2026.10.0'
+          "ref=$ref" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "cloudflared ref: $ref"
+
+      - name: Fetch cloudflared source
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch ${{ steps.src.outputs.ref }} `
+            https://github.com/cloudflare/cloudflared.git cloudflared-src
+          Set-Location cloudflared-src
+          git log -1 --oneline
+          # Show the module's Go requirement so we can tell if the toolchain matches.
+          (Get-Content go.mod -TotalCount 5)
+
+      - name: Cross-compile for windows/arm64
+        shell: pwsh
+        run: |
+          Set-Location cloudflared-src
+          $env:GOOS = 'windows'
+          $env:GOARCH = 'arm64'
+          $env:CGO_ENABLED = '0'
+          go build -trimpath -ldflags='-s -w' -o ..\cloudflared-windows-arm64.exe .
+          Get-Item ..\cloudflared-windows-arm64.exe | Format-List Name,Length
+
+      - name: Verify produced binary
+        shell: pwsh
+        run: |
+          $f = 'cloudflared-windows-arm64.exe'
+          if (-not (Test-Path $f)) { throw "build produced no $f" }
+          $len = (Get-Item $f).Length
+          Write-Host "size: $len bytes"
+          if ($len -lt 5MB) { throw "binary suspiciously small ($len bytes) - build likely failed" }
+          # Confirm it is really a Windows PE binary.
+          $bytes = [System.IO.File]::ReadAllBytes($f)[0..1]
+          if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "not a PE executable (missing MZ header)" }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifact | Out-Null
+          Copy-Item cloudflared-windows-arm64.exe artifact\cloudflared.exe -Force
+          # Checksum for integrity verification after download.
+          $h = (Get-FileHash artifact\cloudflared.exe -Algorithm SHA256).Hash
+          "$h  cloudflared.exe" | Out-File artifact\cloudflared.exe.sha256 -Encoding ascii
+          Write-Host "sha256: $h"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflared-windows-arm64
+          path: artifact/
+          retention-days: 90
+          if-no-files-found: error

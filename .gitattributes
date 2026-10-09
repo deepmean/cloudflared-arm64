@@ -1,0 +1,6 @@
+# Keep workflow YAML and shell scripts with LF endings.
+# Actions runs them through bash; CRLF would break the scripts.
+* text=auto eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
