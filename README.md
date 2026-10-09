@@ -42,10 +42,11 @@ Trigger the **build-cloudflared-windows-arm64** workflow from the Actions tab,
 or push a `v*` tag. The build runs on the GitHub-hosted `windows-11-arm`
 runner (Windows 11 Arm64, Visual Studio 2026 image).
 
-The workflow cross-compiles from Go:
+The workflow cross-compiles from Go. Note that cloudflared has no Go file at
+the repo root — the main package is `cmd/cloudflared`:
 
 ```
-GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build
+GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build ./cmd/cloudflared
 ```
 
 Pin the upstream version in `.github/workflows/build-arm64.yml` under

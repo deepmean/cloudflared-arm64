@@ -55,10 +55,15 @@ jobs:
         shell: pwsh
         run: |
           Set-Location cloudflared-src
+          # cloudflared has no .go file at the repo root; the main package lives in
+          # cmd/cloudflared. Building `.` fails with "no Go files".
+          if (-not (Test-Path .\cmd\cloudflared\main.go)) {
+            throw "expected main package at cmd/cloudflared/main.go"
+          }
           $env:GOOS = 'windows'
           $env:GOARCH = 'arm64'
           $env:CGO_ENABLED = '0'
-          go build -trimpath -ldflags='-s -w' -o ..\cloudflared-windows-arm64.exe .
+          go build -trimpath -ldflags='-s -w' -o ..\cloudflared-windows-arm64.exe ./cmd/cloudflared
           Get-Item ..\cloudflared-windows-arm64.exe | Format-List Name,Length
 
       - name: Verify produced binary
