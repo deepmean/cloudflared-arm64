@@ -20,8 +20,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Must match cloudflared's go.mod at the pinned ref
-          # (2026.10.0 declares `go 1.26`; master declares `go 1.27`).
-          go-version: '1.26.x'
+          # (2026.11.1 declares `go 1.27.4`).
+          go-version: '1.27.4'
           cache: true
 
       - name: Show environment
@@ -37,7 +37,7 @@ jobs:
         run: |
           # Pin to a known-good release tag so the build is reproducible.
           # Override by pushing a v* tag or editing CLOUDFLARED_REF below.
-          $ref = '2026.10.0'
+          $ref = '2026.11.1'
           "ref=$ref" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "cloudflared ref: $ref"
 

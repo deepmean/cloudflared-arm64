@@ -5,7 +5,7 @@ for Windows on ARM64, compiled with GitHub Actions.
 
 ## Why this exists
 
-Cloudflare does not publish a Windows ARM64 build. As of the `2026.10.0`
+Cloudflare does not publish a Windows ARM64 build. As of the `2026.11.1`
 release, the Windows assets are only:
 
 | Asset | Windows ARM64? |
